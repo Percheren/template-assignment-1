@@ -3,6 +3,7 @@ from pathlib import Path
 import gurobipy as gp
 from gurobipy import GRB
 
+# Function to load JSON data
 def load_json(path: Path):
     with open(path, "r") as f:
         return json.load(f)
@@ -98,3 +99,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+    
+    
