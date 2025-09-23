@@ -8,10 +8,11 @@ def load_json(path: Path):
         return json.load(f)
 
 def run_flex_load_pv_optimization(load_params, bus_params, der_production, usage_preference):
+    
+    # Define model parameters
     T = len(der_production[0]["hourly_profile_ratio"])
     pv_max = der_production[0]["hourly_profile_ratio"]
     min_daily_energy = usage_preference[0]["load_preferences"][0]["min_total_energy_per_day_hour_equivalent"]
-
     max_import = bus_params[0]["max_import_kW"]
     max_export = bus_params[0]["max_export_kW"]
     import_tariff = bus_params[0]["import_tariff_DKK/kWh"]
@@ -20,13 +21,19 @@ def run_flex_load_pv_optimization(load_params, bus_params, der_production, usage
 
     max_load = load_params["FFL_01"]["max_load_kWh_per_hour"]
 
+
+    # Create optimization model
     m = gp.Model("flexible_load_pv")
 
+
+    # Decision variables
     PD = {t: m.addVar(lb=0, ub=max_load, name=f"PD_{t}") for t in range(T)}
     PG = {t: m.addVar(lb=0, ub=pv_max[t], name=f"PG_{t}") for t in range(T)}
     PIMP = {t: m.addVar(lb=0, ub=max_import, name=f"PIMP_{t}") for t in range(T)}
     PEXP = {t: m.addVar(lb=0, ub=max_export, name=f"PEXP_{t}") for t in range(T)}
     PV_curtail = {t: m.addVar(lb=0, ub=pv_max[t], name=f"PV_curtail_{t}") for t in range(T)}
+
+
 
     # Constraints
     for t in range(T):
@@ -35,18 +42,26 @@ def run_flex_load_pv_optimization(load_params, bus_params, der_production, usage
 
     m.addConstr(gp.quicksum(PD[t] for t in range(T)) >= min_daily_energy, name="daily_min_energy")
 
-    # Full objective as requested
+
+    # Full objective function
     obj = gp.quicksum(
         energy_price[t] * (PIMP[t] - PEXP[t]) +
         import_tariff * PIMP[t] +
         export_tariff * PEXP[t] for t in range(T)
     )
+    
+    # Set objective 
     m.setObjective(obj, GRB.MINIMIZE)
 
+    # Optimize model
     m.optimize()
+    
+    # Check if optimization is successful
     if m.Status != GRB.OPTIMAL:
         raise RuntimeError(f"Solver ended with status {m.Status}")
 
+
+    # Extract results
     results = []
     for t in range(T):
         imp = PIMP[t].X
@@ -59,17 +74,22 @@ def run_flex_load_pv_optimization(load_params, bus_params, der_production, usage
 
     return results, m.ObjVal
 
+
 def main():
+    # File paths
     base_dir = Path(__file__).resolve().parent.parent / "data" / "question_1a"
 
+    # Load input data
     appliance_params = load_json(base_dir / "appliance_params.json")
     bus_params = load_json(base_dir / "bus_params.json")
     der_production = load_json(base_dir / "DER_production.json")
     usage_preference = load_json(base_dir / "usage_preference.json")
     load_params = {load["load_id"]: load for load in appliance_params["load"]}
 
+    # Run optimization
     results, obj_val = run_flex_load_pv_optimization(load_params, bus_params, der_production, usage_preference)
 
+    # Print results
     print(f"Objective (total cost): {obj_val:.2f} DKK\n")
     print("Hour | Import | Export | PV_used | Demand | NetGrid | PV_Curtail")
     print("-" * 70)
