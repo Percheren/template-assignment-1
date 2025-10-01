@@ -16,6 +16,7 @@ import yaml
 
 
 class DataLoader:
+    
     """
     Loads energy system input data for a given configuration/question from structured CSV and json files
     and an auxiliary configuration metadata file.

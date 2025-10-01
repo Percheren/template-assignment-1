@@ -3,6 +3,7 @@ from pathlib import Path
 import gurobipy as gp
 from gurobipy import GRB
 
+
 # Function to load JSON data
 def load_json(path: Path):
     with open(path, "r") as f:
@@ -86,17 +87,23 @@ def main():
     der_production = load_json(base_dir / "DER_production.json")
     usage_preference = load_json(base_dir / "usage_preference.json")
     load_params = {load["load_id"]: load for load in appliance_params["load"]}
+    
+    # Change in input parameters for a5
+    
+    
 
     # Run optimization
     results, obj_val = run_flex_load_pv_optimization(load_params, bus_params, der_production, usage_preference)
 
+    resultsa5, obj_vala5 = run_flex_load_pv_optimization(load_params, bus_params, der_production, usage_preference)
     # Print results
     print(f"Objective (total cost): {obj_val:.2f} DKK\n")
     print("Hour | Import | Export | PV_used | Demand | NetGrid | PV_Curtail")
     print("-" * 70)
     for row in results:
         print(f"{row[0]:>4} | {row[1]:>6.2f} | {row[2]:>6.2f} | {row[3]:>7.2f} | {row[4]:>6.2f} | {row[5]:>7.2f} | {row[6]:>9.2f}")
-
+    #print("Total PV-production:",sum(results[row][3] for row in range(len(results))))
+    #print("Total consumption:", round(sum(results[row][4] for row in range(len(results)))))
 if __name__ == "__main__":
     main()
     
